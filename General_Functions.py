@@ -32,10 +32,16 @@ def Validate_Raw_Data_Length(device_type, raw_data_length):
 
     query = '''
         SELECT Raw_Data_Length FROM TBL_Device_Raw_Length
-        WHERE Device_Type = %s AND Raw_Data_Length = %s
+        WHERE Device_Type = %s AND Raw_Data_Length <> %s
     '''
-    parameters = (device_type, len(raw_data_length),)
+    parameters = (device_type, len(raw_data_length))
     Cursor.execute(query, parameters)
     results = Cursor.fetchall()
     return True if results != [] else False
+    # if results[0][0] != 0:
+        # return True
 
+    # return False
+
+
+# print(Validate_Raw_Data_Length('HSWB004', ''))

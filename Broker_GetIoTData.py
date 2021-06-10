@@ -18,7 +18,7 @@ def Read_Gateway_Data(raw_data):
 	Create a json data from the raw data.
 	Call Get_Mqtt_Data function with the raw data.
 	"""
-	mqtt_data = raw_data.decode('utf-8').replace("'", '"') 
+	mqtt_data = raw_data.decode('utf-8').replace("'", '"')
 	mqtt_data = json.loads(mqtt_data)
 	print('\n----- Data Begin ----->')
 	Get_Mqtt_Data(mqtt_data)
@@ -27,7 +27,7 @@ def Read_Gateway_Data(raw_data):
 
 def Message(client, obj, msg):
 	"""Load raw data from gateway in the msg parameter.
-	Call Read_Gateway_Data with the raw data 
+	Call Read_Gateway_Data with the raw data
 	from the gateway."""
 	Read_Gateway_Data(msg.payload)
 
