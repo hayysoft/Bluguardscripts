@@ -195,83 +195,10 @@ def Populate_MetaData(data, gateway_mac):
 
 
 
-def Process_Quarentine_Band(data, gateway_mac, device_mac, Device_Type):
+def Set_Device_Offline():
 	Connector = mysql.connect(**config)
 
 	Cursor = Connector.cursor()
-
-	query = '''
-		SELECT COUNT(*) FROM TBL_Device
-		WHERE Device_Mac = %s
-	'''
-	parameter = (device_mac,)
-	Cursor.execute(query, parameter)
-	results = Cursor.fetchall()
-	if results[0][0] != 0:
-		populate_metadata = Populate_MetaData(data, gateway_mac)
-		# print('*' * 10, 'HSWB004', '*' * 10)
-		# print(populate_metadata)
-
-		query = '''
-			INSERT INTO TBL_Incoming
-			(Incoming_ID, Incoming_Device_Mac, Incoming_Gateway_Mac, Incoming_Temp, Incoming_O2,
-			 Incoming_HR, Incoming_Date, Incoming_Time, Device_Status,
-			 Incorrect_Data_Flag, Device_Bat_Level)
-			 VALUES (%s, %s, %s, %s, %s, %s, %s, 'ONLINE", %s, %s)
-		'''
-		parameters = (Create_PK("IN"), populate_metadata['device_mac'], populate_metadata['gateway_mac]'],
-					  0, 0, 0, populate_metadata['date'], populate_metadata['time'], 0, 0)
-		Cursor.execute(query, parameters)
-		Connector.commit()
-
-
-
-def Filter_Message(validated, Device_Type, Raw_Data, data, gateway_mac):
-	# print(data)
-	populate_metadata = Populate_MetaData(data, gateway_mac)
-
-	Connector = mysql.connect(**config)
-	Cursor = Connector.cursor()
-
-	query = '''INSERT INTO TBL_Incoming
-			(Incoming_ID, Incoming_Device_Mac, Incoming_Gateway_Mac,
-			Incoming_Temp, Incoming_O2, Incoming_HR, Incoming_Date,
-			Incoming_Time, Device_Status, Incorrect_Data_Flag, Device_Bat_Level)
-			VALUES (%s, %s, %s, %s, %s, %s, %s, %s, "ONLINE", %s, %s)
-	'''
-
-	if validated == False:
-		json_manager = ManageJson('incorrect_raw_data')
-		data_from_json = json_manager.load_json()
-		populate_metadata.update({
-			'rawData': Raw_Data
-		})
-		data_from_json.append(populate_metadata)
-		json_manager.save_json(data_from_json)
-		# print('*' * 10, 'INCORRECT_DATA', '*' * 10)
-		# print(populate_metadata)
-
-		parameters = (Create_PK("IN"), populate_metadata['device_mac'], populate_metadata['gateway_mac'],
-				  	  0, 0, 0, populate_metadata['date'], populate_metadata['time'], 1, 0)
-	elif validated == True:
-		# Data is correct
-		populate_vitaldata = Process_RawData(Raw_Data, Device_Type)
-		populate_vitaldata.update(populate_metadata)
-		json_manager = ManageJson()
-		data_from_json = json_manager.load_json()
-		data_from_json.append(populate_vitaldata)
-		json_manager.save_json(data_from_json)
-		# print('*' * 10, 'CORRECT_DATA', '*' * 10)
-		# print(populate_vitaldata)
-
-		parameters = (Create_PK("IN"), populate_vitaldata['device_mac'], populate_vitaldata['gateway_mac'],
-					  populate_vitaldata['temp'], populate_vitaldata['spo2'],
-					  populate_vitaldata['heart_rate'], populate_vitaldata['date'],
-					  populate_vitaldata['time'], 0, populate_vitaldata['batlevel'])
-
-	Cursor.execute(query, parameters)
-	Connector.commit()
-
 
 	query = '''UPDATE TBL_Device
 				SET Device_Status = 'OFFLINE', Device_Bat_Level = %s,
@@ -293,87 +220,157 @@ def Filter_Message(validated, Device_Type, Raw_Data, data, gateway_mac):
 	parameters = (0, 0, 0, 0, 'OFFLINE', 1)
 	Cursor.execute(query, parameters)
 	Connector.commit()
+
+
+def Process_Quarentine_Band(data, gateway_mac, Device_Mac, Device_Type):
+	Connector = mysql.connect(**config)
+
+	Cursor = Connector.cursor()
+
+	populate_metadata = Populate_MetaData(data, gateway_mac)
+	print(populate_metadata)
+
+	query_to_tbl_device = '''
+		UPDATE TBL_Device
+			SET Device_Last_Updated_Date = %s,
+				Device_Last_Updated_Time = %s,
+	            Device_Temp = %s,
+	            Device_HR = %s,
+	            Device_O2 = %s,
+	            Incorrect_Data_Flag =%s,
+	            Device_Status = "ONLINE"
+	        WHERE Device_Mac = %s
+	'''
+	parameters_to_tbl_device = (populate_metadata['date'],
+			  	  				populate_metadata['time'], 0, 0, 0, 0, Device_Mac)
+	Cursor.execute(query_to_tbl_device, parameters_to_tbl_device)
+	Connector.commit()
+
+	# query = '''
+	# 	SELECT COUNT(*) FROM TBL_Device
+	# 	WHERE Device_Mac = %s
+	# '''
+	# parameter = (Device_Mac,)
+	# Cursor.execute(query, parameter)
+	# results = Cursor.fetchall()
+	# if results[0][0] != 0:
+		# populate_metadata = Populate_MetaData(data, gateway_mac)
+		# print('*' * 10, 'HSWB004', '*' * 10)
+		# print(populate_metadata)
+
+		# query = '''
+		# 	INSERT INTO TBL_Incoming
+		# 	(Incoming_ID, Incoming_Device_Mac, Incoming_Gateway_Mac, Incoming_Temp, Incoming_O2,
+		# 	 Incoming_HR, Incoming_Date, Incoming_Time, Device_Status,
+		# 	 Incorrect_Data_Flag, Device_Bat_Level)
+		# 	 VALUES (%s, %s, %s, %s, %s, %s, %s, 'ONLINE", %s, %s)
+		# '''
+		# parameters = (Create_PK("IN"), populate_metadata['device_mac'], populate_metadata['gateway_mac]'],
+		# Cursor.execute(query, parameters)
+		# Connector.commit()
+
+	Set_Device_Offline()
+
+
+
+def Filter_Message(validated, Device_Type, Raw_Data, data, gateway_mac, Device_Mac):
+	populate_metadata = Populate_MetaData(data, gateway_mac)
+
+	Connector = mysql.connect(**config)
+	Cursor = Connector.cursor()
+
+	query_to_tbl_incoming = '''INSERT INTO TBL_Incoming
+			(Incoming_ID, Incoming_Device_Mac, Incoming_Gateway_Mac,
+			Incoming_Temp, Incoming_O2, Incoming_HR, Incoming_Date,
+			Incoming_Time, Device_Status, Incorrect_Data_Flag, Device_Bat_Level)
+			VALUES (%s, %s, %s, %s, %s, %s, %s, %s, "ONLINE", %s, %s)
+	'''
+
+	query_to_tbl_device = '''
+		UPDATE TBL_Device
+			SET Device_Last_Updated_Date = %s,
+				Device_Last_Updated_Time = %s,
+	            Device_Temp = %s,
+	            Device_HR = %s,
+	            Device_O2 = %s,
+	            Incorrect_Data_Flag =%s,
+	            Device_Status = "ONLINE"
+	        WHERE Device_Mac = %s
+	'''
+
+	if validated == False:
+		json_manager = ManageJson('incorrect_raw_data')
+		data_from_json = json_manager.load_json()
+		populate_metadata.update({
+			'rawData': Raw_Data
+		})
+		data_from_json.append(populate_metadata)
+		json_manager.save_json(data_from_json)
+		print('*' * 10, 'INCORRECT_DATA', '*' * 10)
+		print(f'validated = {validated}')
+		print(f'rawData = {data["rawData"]}')
+		print(f'Device_Mac = {Device_Mac}')
+		print(f'device_type = {Device_Type}')
+		# print(populate_metadata)
+
+		# parameters_to_tbl_incoming = (Create_PK("IN"), populate_metadata['device_mac'],
+		# 							  populate_metadata['gateway_mac'],
+		# 		  	  				  0, 0, 0, populate_metadata['date'],
+		# 		  	  				  populate_metadata['time'], 1, 0)
+		parameters_to_tbl_device = (populate_metadata['date'],
+				  	  				populate_metadata['time'], 0, 0, 0, 1, Device_Mac)
+	elif validated == True:
+		# Data is correct
+		populate_vitaldata = Process_RawData(Raw_Data, Device_Type)
+		populate_vitaldata.update(populate_metadata)
+		json_manager = ManageJson()
+		data_from_json = json_manager.load_json()
+		data_from_json.append(populate_vitaldata)
+		json_manager.save_json(data_from_json)
+		print('*' * 10, 'CORRECT_DATA', '*' * 10)
+		print(f'validated = {validated}')
+		print(f'rawData = {data["rawData"]}')
+		print(f'Device_Mac = {Device_Mac}')
+		print(f'device_type = {Device_Type}')
+		# print(populate_vitaldata)
+
+		# parameters_to_tbl_incoming = (Create_PK("IN"), populate_vitaldata['device_mac'],
+		# 							  populate_vitaldata['gateway_mac'],
+		# 			  				  populate_vitaldata['temp'], populate_vitaldata['spo2'],
+		# 			  				  populate_vitaldata['heart_rate'], populate_vitaldata['date'],
+		# 			  				  populate_vitaldata['time'], 0, populate_vitaldata['batlevel'])
+		parameters_to_tbl_device = (populate_metadata['date'], populate_metadata['time'],
+					  				populate_vitaldata['temp'], populate_vitaldata['heart_rate'],
+					  				populate_vitaldata['spo2'], 0, Device_Mac)
+
+	# Cursor.execute(query_to_tbl_incoming, parameters_to_tbl_incoming)
+	# Connector.commit()
+	Cursor.execute(query_to_tbl_device, parameters_to_tbl_device)
+	Connector.commit()
+
+
+	Set_Device_Offline()
 	print('Filter_Message function executed successfully!')
 
 
 
 def Get_Mqtt_Data(data_from_gateway):
-	gateway_mac = data_from_gateway[0].get('mac')
-
-	macs = {}
-	x = 1
-	data_to_save = []
 	for data in data_from_gateway:
-		print(data)
-		keys = list(data.keys())
-		for key in keys:
-			if key == 'mac':
-				macs[f'mac_{x}'] = data['mac']
-				x += 1
+		if data['type'] == 'Gateway':
+			gateway_mac = data['mac']
 
-		Device_Type = Get_Device_Type(data['mac'])
-		if Device_Type == 'HSWB004':
-			Process_Quarentine_Band(data, gateway_mac, data['mac'], Device_Type)
+		if data['type'] != 'Gateway':
+			Device_Mac = data['mac']
+			Device_Type = Get_Device_Type(Device_Mac)
 
-		for mac_key in list(macs.keys())[1:]:
-			for key in keys:
-				if key == 'rawData':
-					try:
-						results = Validate_Raw_Data_Length(Device_Type, data['rawData'])
-						Filter_Message(results, Device_Type, data['rawData'], data, gateway_mac=gateway_mac)
-					except TypeError:
-						pass
+			if Device_Type == 'HSWB004':
+				print(f'Device_Type = {Device_Type}')
+				Process_Quarentine_Band(data, gateway_mac, data['mac'], Device_Type)
+			elif data.get('rawData') is not None:
+				results = Validate_Raw_Data_Length(Device_Type, data['rawData'])
+				Filter_Message(results, Device_Type, data['rawData'], data, gateway_mac=gateway_mac, Device_Mac=Device_Mac)
 
 	print('\n')
-
-
-
-#def Get_Blename(data_from_gateway):
-	"""Functionality for this funcion is achieved inside
-	Get_Mqtt_Data
-	"""
-#	pass
-
-#def Get_Band_Details(xml_file):
-	"""Functionality for this funcion is achieved inside
-	Get_Mqtt_Data
-	"""
-#	pass
-
-
-#def Get_Raw_Data(data_from_gateway):
-	"""Functionality for this funcion is achieved inside
-	Get_Mqtt_Data
-	"""
-#	pass
-
-
-#def Get_Gateway_Mac(raw_data):
-	"""Functionality for this funcion is achieved inside
-	Get_Mqtt_Data
-	"""
-#	pass
-
-#def Get_Type(raw_data):
-	"""Functionality for this funcion is achieved inside
-	Get_Mqtt_Data
-	"""
-#	pass
-
-
-#def Get_RSSI(raw_data):
-	"""Functionality for this funcion is achieved inside
-	Get_Mqtt_Data
-	"""
-#	pass
-
-#def	Get_Status_BandMac(raw_data,
-#				gateway_startpos,
-#				gateway_endpos):
-	"""Functionality for this funcion is achieved inside
-	Get_Mqtt_Data
-	"""
-#	pass
 
 
 

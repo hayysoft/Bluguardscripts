@@ -1,56 +1,73 @@
-import json
+import datetime
+import mysql.connector as mysql
 from read_json import ManageJson
-from Update_DB_LastRead_Details import MySQLConnector
-from Clear_TBL_Incoming import Clear_TBL_Incoming
 
 
-def Clear_Raw_Data():
-	"""Clear data inside raw_data after appending in the
-	respective band_mac files. This function is called every 
-	60 seconds.
-	"""
-	
-	# with open('D:/Scripts/interview/media/raw_data.json') as fp:
-	# 	data = json.loads(fp.read())
+config = {
+    'host': 'bluguardprod1.mysql.database.azure.com',
+    'user': 'bluguardprod1@bluguardprod1',
+    'password': 'DoNotHack2021!',
+    'database': 'bluguarddb',
+    'client_flags': [mysql.ClientFlag.SSL],
+    'ssl_ca': '',
+}
 
-	# connector = MySQLConnector('bluguarddb')
-	# connector.add_new_data(data)
 
-	with open('D:/Scripts/interview/media/raw_data.json', 'w') as fp:
-		fp.write('[]')
+def Clear_Raw_Data_Json():
+    with open('C:/Users/hayysoft/Documents/Scripts/interview/media/raw_data.json', 'w') as fp:
+        fp.write('[]')
 
 
 
-def Read_And_Append():
-	"""Reads and loops through the data inside raw_data.json. 
-	For every loop save the data in a file named after
-	the band_mac, respectively.
-	-------------
-	"""
-	json_manager = ManageJson()
-	data_from_json = json_manager.load_json()
-	for row in data_from_json:
-		try:
-			json_manager_ = ManageJson(row['band_mac'])
-			json_manager_data = json_manager_.load_json()
-			json_manager_data.append(row)
-			json_manager_.save_json(json_manager_data)
-		except TypeError:
-			pass
+def Update_Device():
+    Connector = mysql.connect(**config)
+    Cursor = Connector.cursor()
+
+    file_reader = ManageJson()
+    data = file_reader.load_json()
+    data_to_save = {}
+    for row in data:
+        data_to_save[row['device_mac']] = row
 
 
-"""
-	This file is used to generate Update_Device_Reading.exe
-	for setting up the scheduler.
+    for row in data_to_save.items():
+        row_data = row[1]
+        object_update = ManageJson(row[0])
+        object_update_data = object_update.load_json()
+        object_update_data.append(row_data)
+        object_update.save_json(object_update_data)
+        print(row_data)
 
-	Instructions for generating Update_Device_Reading.exe can
-	be found at https://datatofish.com/executable-pyinstaller/
-"""
+        query = '''
+            UPDATE TBL_Device
+            SET Device_Last_Updated_Date = %s,
+                Device_Last_Updated_Time = %s,
+                Device_Temp = %s,
+                Device_HR = %s,
+                Device_O2 = %s,
+                Device_Bat_Level = %s
+        '''
+        Device_Date = row_data['date']
+        Device_Time = row_data['time']
+        Device_Temp = row_data['temp']
+        Device_HR = row_data['heart_rate']
+        Device_O2 = row_data['spo2']
+        Device_RSSI = row_data['rssi']
+        Device_Bat_Level = row_data['batlevel']
+        parameters = (Device_Date, Device_Time,
+                      Device_Temp, Device_HR,
+                      Device_O2, Device_Bat_Level)
+        Cursor.execute(query, parameters)
+        Connector.commit()
 
-print('From scheduler...')
-Read_And_Append() 
-Clear_Raw_Data()
 
 
 
+
+
+
+
+Update_Device()
+Clear_Raw_Data_Json()
+print('Files cleared successfully!')
 
