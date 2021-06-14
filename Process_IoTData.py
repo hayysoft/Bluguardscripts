@@ -197,7 +197,6 @@ def Populate_MetaData(data, gateway_mac):
 
 def Set_Device_Offline():
 	Connector = mysql.connect(**config)
-
 	Cursor = Connector.cursor()
 
 	query = '''UPDATE TBL_Device
@@ -228,7 +227,7 @@ def Process_Quarentine_Band(data, gateway_mac, Device_Mac, Device_Type):
 	Cursor = Connector.cursor()
 
 	populate_metadata = Populate_MetaData(data, gateway_mac)
-	print(populate_metadata)
+	# print(populate_metadata)
 
 	query_to_tbl_device = '''
 		UPDATE TBL_Device
@@ -237,7 +236,7 @@ def Process_Quarentine_Band(data, gateway_mac, Device_Mac, Device_Type):
 	            Device_Temp = %s,
 	            Device_HR = %s,
 	            Device_O2 = %s,
-	            Incorrect_Data_Flag =%s,
+	            Incorrect_Data_Flag = %s,
 	            Device_Status = "ONLINE"
 	        WHERE Device_Mac = %s
 	'''
@@ -355,7 +354,9 @@ def Filter_Message(validated, Device_Type, Raw_Data, data, gateway_mac, Device_M
 
 
 def Get_Mqtt_Data(data_from_gateway):
+	# print(data_from_gateway)
 	for data in data_from_gateway:
+		print(data)
 		if data['type'] == 'Gateway':
 			gateway_mac = data['mac']
 
@@ -365,12 +366,12 @@ def Get_Mqtt_Data(data_from_gateway):
 
 			if Device_Type == 'HSWB004':
 				print(f'Device_Type = {Device_Type}')
-				Process_Quarentine_Band(data, gateway_mac, data['mac'], Device_Type)
+				Process_Quarentine_Band(data, gateway_mac, Device_Mac, Device_Type)
 			elif data.get('rawData') is not None:
 				results = Validate_Raw_Data_Length(Device_Type, data['rawData'])
 				Filter_Message(results, Device_Type, data['rawData'], data, gateway_mac=gateway_mac, Device_Mac=Device_Mac)
 
-	print('\n')
+	print('\n\n')
 
 
 

@@ -62,12 +62,7 @@ def Update_Device():
 
 
 
-
-
-
-
-
 Update_Device()
 Clear_Raw_Data_Json()
-print('Files cleared successfully!')
+print('File cleared successfully!')
 
