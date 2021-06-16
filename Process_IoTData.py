@@ -268,7 +268,7 @@ def Process_Quarentine_Band(data, gateway_mac, Device_Mac, Device_Type):
 		# Cursor.execute(query, parameters)
 		# Connector.commit()
 
-	Set_Device_Offline()
+	# Set_Device_Offline()
 
 
 
@@ -278,12 +278,12 @@ def Filter_Message(validated, Device_Type, Raw_Data, data, gateway_mac, Device_M
 	Connector = mysql.connect(**config)
 	Cursor = Connector.cursor()
 
-	query_to_tbl_incoming = '''INSERT INTO TBL_Incoming
-			(Incoming_ID, Incoming_Device_Mac, Incoming_Gateway_Mac,
-			Incoming_Temp, Incoming_O2, Incoming_HR, Incoming_Date,
-			Incoming_Time, Device_Status, Incorrect_Data_Flag, Device_Bat_Level)
-			VALUES (%s, %s, %s, %s, %s, %s, %s, %s, "ONLINE", %s, %s)
-	'''
+	# query_to_tbl_incoming = '''INSERT INTO TBL_Incoming
+	# 		(Incoming_ID, Incoming_Device_Mac, Incoming_Gateway_Mac,
+	# 		Incoming_Temp, Incoming_O2, Incoming_HR, Incoming_Date,
+	# 		Incoming_Time, Device_Status, Incorrect_Data_Flag, Device_Bat_Level)
+	# 		VALUES (%s, %s, %s, %s, %s, %s, %s, %s, "ONLINE", %s, %s)
+	# '''
 
 	query_to_tbl_device = '''
 		UPDATE TBL_Device
@@ -348,7 +348,7 @@ def Filter_Message(validated, Device_Type, Raw_Data, data, gateway_mac, Device_M
 	Connector.commit()
 
 
-	Set_Device_Offline()
+	# Set_Device_Offline()
 	print('Filter_Message function executed successfully!')
 
 
