@@ -59,9 +59,12 @@ def Get_Device_ID_For_Symptom_Check_In(Wearer_ID):
 
 default = lambda obj: obj.isoformat() if isinstance(obj, datetime) else obj
 
+
 def Check_In_Symptoms():
     Connector = mysql.connect(**config)
     Cursor = Connector.cursor()
+
+    global Subject_ID
 
     query = '''
         SELECT Daily_Survey_ID, Daily_Survey_Q2_Y1,
@@ -93,16 +96,17 @@ def Check_In_Symptoms():
     Survey_Ids = [row[0] for row in results]
 
     Device_IDs = []
-    for index, wearer_id in enumerate(Wearer_IDs):
+    # for index, wearer_id in enumerate(Wearer_IDs):
+    for row, wearer_id in zip(data, Wearer_IDs):
         results = Get_Device_ID_For_Symptom_Check_In(wearer_id)
         Device_ID = results[0]
         Datetime = results[1]
-        data[index]['device_id'] = Device_ID
-        data[index]['datetime'] = Datetime
+        row['device_id'] = Device_ID
+        row['datetime'] = Datetime
 
         Device_Tag = results[2]
         query = '''
-            SELECT Patient_ID AS subject_id
+            SELECT Patient_Tag AS subject_id
             FROM TBL_Crest_Patient
             WHERE Device_Tag = %s AND
                   Patient_Discharged = %s
@@ -112,24 +116,15 @@ def Check_In_Symptoms():
         Patient_ID = dictfetchall(Cursor)
         try:
             Subject_ID = int(Patient_ID[0]['subject_id'])
+            print(f'Subject_ID = {Subject_ID}')
             data[index].update({
                 'subject_id': Subject_ID
             })
-            query = '''
-                UPDATE TBL_Crest_Patient
-                SET Last_Survey_Datetime = CURRENT_TIMESTAMP()
-                WHERE Patient_ID = %s
-            '''
-            parameter = (Subject_ID,)
-            Cursor.execute(query, parameter)
-            Connector.commit()
         except LookupError:
-            data[index].update({
+            row.update({
                 'subject_id': 1
             })
 
-
-    for row in data:
         try:
             datetime_val = int(row['datetime'].timestamp())
             row['datetime'] = datetime_val
@@ -143,9 +138,50 @@ def Check_In_Symptoms():
             'Authorization': 'Token 7c1899d4eab19ad83c585390c84586f3e385610c',
             'Content-Type': 'application/json'
         })
-        print(f'Status:{response.status_code}')
+
         print(f'Response: {response.json()}')
         print(f'Reason: {response.reason}')
+
+        if response.status_code == 200:
+            print(f'Status:{response.status_code}')
+            query = '''
+                UPDATE TBL_Crest_Patient
+                SET Last_Survey_Datetime = CURRENT_TIMESTAMP()
+                WHERE Patient_Tag = %s
+            '''
+
+            Subject_ID_query = '''
+                SELECT Patient_Tag AS subject_id
+                FROM TBL_Crest_Patient
+                WHERE Wearer_ID = %s AND
+                      Patient_Discharged = %s
+            '''
+            parameter = (wearer_id, 0)
+            Cursor.execute(Subject_ID_query, parameter)
+            Patient_ID = dictfetchall(Cursor)
+            try:
+                Subject_ID = int(Patient_ID[0]['subject_id'])
+                parameter = (Subject_ID,)
+                print(f'Subject_ID = {Subject_ID}')
+                Cursor.execute(query, parameter)
+                Connector.commit()
+            except LookupError:
+                pass
+
+
+
+
+
+
+
+    # for row in data:
+    #     try:
+            # datetime_val = int(row['datetime'].timestamp())
+            # row['datetime'] = datetime_val
+    #     except AttributeError:
+    #         pass
+
+
 
 
         # After successfull POST request

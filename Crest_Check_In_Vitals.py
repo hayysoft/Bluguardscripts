@@ -113,7 +113,7 @@ def Crest_Check_In_Vitals():
                 'Content-Type': 'application/json'
             })
             print(f'Status:{response.status_code}')
-            print(f'Response: {response.json()}')
+            # print(f'Response: {response.json()}')
             print(f'Reason: {response.reason}')
 
             # After successfull POST request

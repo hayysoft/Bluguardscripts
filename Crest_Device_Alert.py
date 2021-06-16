@@ -21,7 +21,7 @@ def Crest_Device_Alert():
     Cursor = Connector.cursor()
 
     query = '''
-        SELECT Device_Tag FROM TBL_Crest_Patient
+        SELECT Patient_Tag, Device_Tag FROM TBL_Crest_Patient
         WHERE Patient_Discharged = %s
     '''
     parameter = (0,)
@@ -29,6 +29,7 @@ def Crest_Device_Alert():
     Device_Tags = dictfetchall(Cursor)
     for row in Device_Tags:
         Device_Tag = row['Device_Tag']
+        Patient_Tag = row['Patient_Tag']
         query = '''
             SELECT CONCAT(Device_Last_Updated_Date, " ",
                       Device_Last_Updated_Time) AS datetime,
@@ -105,31 +106,15 @@ def Crest_Device_Alert():
                             'longitude': 999.99
                         })
 
-
-                    Device_Tag = device_row['Device_Tag']
-                    query = '''
-                        SELECT Patient_ID AS subject_id
-                        FROM TBL_Crest_Patient
-                        WHERE Device_Tag = %s AND
-                              Patient_Discharged = 0
-                    '''
-                    parameter = (Device_Tag,)
-                    Cursor.execute(query, parameter)
-                    Patient_ID = dictfetchall(Cursor)
-                    try:
-                        device_row.update({
-                            'subject_id': Patient_ID[0]['Patient_ID']
-                        })
-                    except LookupError:
-                        device_row.update({
-                            'subject_id': 1
-                        })
+                    device_row.update({
+                        'subject_id': Patient_Tag
+                    })
 
                     del device_row['Gateway_Mac']
-                    del device_row['Device_Tag']
-
-                    device_row['device_id'] = device_row['Device_ID']
                     del device_row['Device_ID']
+
+                    device_row['device_id'] = device_row['Device_Tag']
+                    del device_row['Device_Tag']
 
                     datetime_val = datetime.strptime(device_row['datetime'], '%Y-%m-%d %H:%M:%S')
                     datetime_val = int(datetime_val.timestamp())
@@ -137,21 +122,25 @@ def Crest_Device_Alert():
 
                     print(json.dumps(device_row, indent=4))
                     url = 'http://dhri.crc.gov.my/patient/device_alert'
-                    response = requests.post(url, data=data, headers={
-                        'Authorization': 'Token 7c1899d4eab19ad83c585390c84586f3e385610c'
+                    response = requests.post(url, json=device_row, headers={  # data=json.dumps(device_row)
+                        'Authorization': 'Token 7c1899d4eab19ad83c585390c84586f3e385610c',
+                        # 'Content-Type': 'application/json'
                     })
-                    print(f'Status:{response.status_code}')
+                    # print(f'Status:{response.status_code}')
                     print(f'Response: {response.json()}')
                     print(f'Reason: {response.reason}')
-                    # if response.status_code == 200:
-                    #     query = '''
-                    #         UPDATE TBL_Alert
-                    #         SET Sent_To_Crest = %s AND
-                    #             Alert_ID = %s
-                    #     '''
-                    #     parameters = (1, Alert_ID)
-                    #     Cursor.execute(query, parameters)
-                    #     Connector.commit()
+
+                    if response.status_code == 200:
+                        print(f'Status: {response.status_code}')
+                        print('Hello World')
+                        query = '''
+                            UPDATE TBL_Alert
+                            SET Sent_To_Crest = %s AND
+                                Alert_ID = %s
+                        '''
+                        parameters = (1, Alert_ID)
+                        Cursor.execute(query, parameters)
+                        Connector.commit()
 
             except (IndexError, KeyError):
                 pass
@@ -162,33 +151,7 @@ def Crest_Device_Alert():
 
 
 
-# Crest_Device_Alert()
-
-
-data = {
-    "datetime": 1623652234,
-    "temperature_alert": 2,
-    "heartrate_alert": 0,
-    "SpO2_alert": 0,
-    "alert_value": "N/A",
-    "alert_type": 1,
-    "latitude": 999.99,
-    "longitude": 999.99,
-    "subject_id": 123,
-    "device_id": "DVC2021-05-04T15:49:27.649073",
-    "respiratory_alert": 456
-}
-# for key, value in data.items():
-#     print(f'{key}: {type(value)}')
-
-url = 'http://dhri.crc.gov.my/patient/device_alert'
-response = requests.post(url, data=json.dumps(data), headers={
-    'Authorization': 'Token 7c1899d4eab19ad83c585390c84586f3e385610c',
-    'Content-Type': 'application/json'
-})
-print(f'Status:{response.status_code}')
-print(f'Response: {response.json()}')
-print(f'Reason: {response.reason}')
+Crest_Device_Alert()
 
 
 # {
