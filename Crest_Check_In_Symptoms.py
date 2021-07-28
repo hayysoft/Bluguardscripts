@@ -1,5 +1,6 @@
 import json
 import time
+import logging
 import datetime as dt
 from datetime import datetime
 import requests
@@ -7,21 +8,20 @@ import mysql.connector as mysql
 from General_Functions import config
 
 
-"""
-{
-    “subject_id”: [int],
-    “device_id”: [string],
-    “datetime”: [int],
-    “fever”: [int],
-    “breathing”: [int],
-    “coughing”: [int],
-    “eating”: [int],
-    “tiredness”: [int],
-    “doctor”: [int],
-    “photo”: [varbinary], *For CQ01 & CQ02, other devices use 0
-    “cough_sound”: [varbinary], *For CQ01 & CQ02, other devices use 0
-}
-"""
+def Save_To_Logging(Subject_ID):
+    logger = logging.getLogger('Crest Check In Symptoms')
+    logger.setLevel(logging.INFO)
+
+    file_handler = logging.FileHandler('C:/Users/hayysoft/Documents/LogFiles/Crest_Check_In_Symptoms.log')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    logger.info('\nProgram started!')
+    logger.info(f'Subject_ID = {Subject_ID}')
+    logger.info('Program Finished!\n\n')
+
+    print('INFO saved to logging file after POST request')
+
 
 
 def dictfetchall(cursor):
@@ -77,6 +77,7 @@ def Check_In_Symptoms():
     parameter = (0,)
     Cursor.execute(query, parameter)
     results = Cursor.fetchall()
+
     data = [
         {
             'subject_id': 0,
@@ -92,7 +93,7 @@ def Check_In_Symptoms():
             'cough_sound': 0
         } for row in results
     ]
-    Wearer_IDs = [row[5] for row in results]
+    Wearer_IDs = [row[6] for row in results]
     Survey_Ids = [row[0] for row in results]
 
     Device_IDs = []
@@ -101,10 +102,10 @@ def Check_In_Symptoms():
         results = Get_Device_ID_For_Symptom_Check_In(wearer_id)
         Device_ID = results[0]
         Datetime = results[1]
-        row['device_id'] = Device_ID
+        Device_Tag = results[2]
+        row['device_id'] = str(Device_Tag)
         row['datetime'] = Datetime
 
-        Device_Tag = results[2]
         query = '''
             SELECT Patient_Tag AS subject_id
             FROM TBL_Crest_Patient
@@ -117,7 +118,7 @@ def Check_In_Symptoms():
         try:
             Subject_ID = int(Patient_ID[0]['subject_id'])
             print(f'Subject_ID = {Subject_ID}')
-            data[index].update({
+            row.update({
                 'subject_id': Subject_ID
             })
         except LookupError:
@@ -168,63 +169,25 @@ def Check_In_Symptoms():
             except LookupError:
                 pass
 
+            print(f'Wearer_ID = {wearer_id}')
+            query = '''
+                UPDATE TBL_Daily_Survey
+                SET Sent_To_Crest = %s
+                WHERE Wearer_ID = %s
+            '''
+            print(f'wearer_id = {wearer_id}')
+            parameter = (1, wearer_id)
 
+            Cursor.execute(query, parameter)
+            Connector.commit()
 
+            Save_To_Logging(Subject_ID)
+            print('SAVED TO LOG FILE')
 
-
-
-
-    # for row in data:
-    #     try:
-            # datetime_val = int(row['datetime'].timestamp())
-            # row['datetime'] = datetime_val
-    #     except AttributeError:
-    #         pass
-
-
-
-
-        # After successfull POST request
-        # UPDATED Last_Survey_Datetime inside tbl_patient
-        #
-
-        # if response.status_code == 200:
-        #     for Survey_Id in Survey_Ids:
-        #         query = '''
-        #             UPDATE TBL_Daily_Survey
-        #             SET Sent_To_Crest = %s AND
-        #                 Daily_Survey_ID = %s
-        #         '''
-        #         parameters = (1, Survey_Id)
-        #         Cursor.execute(query, parameters)
-        #         Connector.commit()
 
 
 Check_In_Symptoms()
 
 
-# data = {
-#     "subject_id": 1,
-#     "device_id": "DVC2021-05-04T15:49:27.649073",
-#     "datetime": 1623787941,
-#     "fever": 0,
-#     "breathing": 0,
-#     "coughing": 0,
-#     "eating": 0,
-#     "tiredness": 0,
-#     "doctor": 1,
-#     "photo": 0,
-#     "cough_sound": 0
-# }
-
-
-
-# url = 'http://dhri.crc.gov.my/patient/checkin_symptoms'
-# data = json.dumps(data)
-# response = requests.post(url, data=data, headers={
-#     'Authorization': 'Token 7c1899d4eab19ad83c585390c84586f3e385610c',
-#     'Content-Type': 'application/json'
-# })
-# print(f'Status:{response.status_code}')
-# print(f'Response: {response.json()}')
-# print(f'Reason: {response.reason}')
+print('Crest_Check_In_Symptoms.py ran successfull!')
+time.sleep(3)

@@ -1,12 +1,29 @@
 import os
 import json
 import time
+import logging
+import requests
 import datetime as dt
 from datetime import datetime
-import requests
 import mysql.connector as mysql
 from General_Functions import config
 from requests import HTTPError, ConnectionError as ReqError
+
+
+
+def Save_To_Logging(Device_Tag):
+    logger = logging.getLogger('Crest Check In Vitals')
+    logger.setLevel(logging.INFO)
+
+    file_handler = logging.FileHandler('C:/Users/hayysoft/Documents/LogFiles/Crest_Check_In_Vitals.log')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    logger.info('\nProgram started!')
+    logger.info(f'Device_Tag = {Device_Tag}')
+    logger.info('Program Finished!\n\n')
+
+    print('INFO saved to logging file after POST request')
 
 
 
@@ -33,8 +50,11 @@ def Crest_Check_In_Vitals():
 
     for patient_row in patients:
         Device_Tag = patient_row['Device_Tag']
+        print(f'Device_Tag = {Device_Tag}')
         Patient_Tag = patient_row['Patient_Tag']
+        print(f'Patient_Tag = {Patient_Tag}')
         Patient_ID = patient_row['Patient_ID']
+        print(f'Patient_ID = {Patient_ID}')
         query = '''
             SELECT CONCAT(Device_Last_Updated_Date, " ",
                           Device_Last_Updated_Time) AS datetime,
@@ -118,52 +138,27 @@ def Crest_Check_In_Vitals():
 
             # After successfull POST request
             # UPDATED Last_Vitals_Datetime inside tbl_patient
-            query = '''
-                UPDATE TBL_Crest_Patient
-                SET Last_Vitals_Datetime = CURRENT_TIMESTAMP()
-                WHERE Patient_ID = %s
-            '''
-            parameter = (Patient_ID,)
-            Cursor.execute(query, parameter)
-            Connector.commit()
+            if response.status_code == 200:
+                query = '''
+                    UPDATE TBL_Crest_Patient
+                    SET Last_Vitals_Datetime = CURRENT_TIMESTAMP()
+                    WHERE Patient_ID = %s
+                '''
+                parameter = (Patient_ID,)
+                Cursor.execute(query, parameter)
+                Connector.commit()
+
+                Save_To_Logging(Device_Tag)
         except LookupError:
             pass
+
 
 
 Crest_Check_In_Vitals()
 
 
-data = {
-    "subject_id": 999,
-    "device_id": "DVC2011-05-20T14:32:26.313832",
-    "datetime": 1623652234,
-    "latitude": 999.99,
-    "longitude": 999.99,
-    "checkin": 1,
-    "temperature": 0.0,
-    "SpO2": 0,
-    "heartrate": 0,
-    "temperature_finger": 999.99,
-    "SpO2_finger": 999,
-    "heartrate_finger": 999,
-    "respiratory_rate": 999
-}
+print('Crest_Check_In_Vitals.py ran successfull!')
+time.sleep(3)
 
 
-"""
-{
-    “subject_id”: [int],
-    “device_id”: [string],
-    “datetime”: [int],
-    “latitude”: [float], *For CQ01 & CQ02, other devices use 0
-    “longitude”: [float], *For CQ01 & CQ02, other devices use 0
-    “checkin”: [int], *For CQ01, other devices use 1
-    “temperature”: [float],
-    “SpO2”: [int],
-    “heartrate”: [int],
-    “temperature_finger”: [float], **For CQ02 & CQ03, other devices use -999.99
-    “SpO2_finger”: [int], **For CQ02 & CQ03, other devices use -999
-    “heartrate_finger”: [int], **For CQ02 & CQ03, other devices use -999
-    “respiratory_rate”: [int] **For CQ02 & CQ03, other devices use -999
-}
-"""
+

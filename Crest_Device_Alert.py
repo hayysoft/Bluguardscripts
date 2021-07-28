@@ -1,11 +1,28 @@
 import os
 import json
 import time
+import logging
+import requests
 import datetime as dt
 from datetime import datetime
-import requests
 import mysql.connector as mysql
 from General_Functions import config
+
+
+def Save_To_Logging(Alert_ID):
+    logger = logging.getLogger('Crest Device Alert')
+    logger.setLevel(logging.INFO)
+
+    file_handler = logging.FileHandler('C:/Users/hayysoft/Documents/LogFiles/Crest_Device_Alert.log')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    logger.info('\nProgram started!')
+    logger.info(f'Alert_ID = {Alert_ID}')
+    logger.info('Program Finished!\n\n')
+
+    print('INFO saved to logging file after POST request')
+
 
 
 def dictfetchall(cursor):
@@ -20,6 +37,7 @@ def Crest_Device_Alert():
     Connector = mysql.connect(**config)
     Cursor = Connector.cursor()
 
+    # Select from TBL_Crest_Patient where patient is not discharge
     query = '''
         SELECT Patient_Tag, Device_Tag FROM TBL_Crest_Patient
         WHERE Patient_Discharged = %s
@@ -30,6 +48,8 @@ def Crest_Device_Alert():
     for row in Device_Tags:
         Device_Tag = row['Device_Tag']
         Patient_Tag = row['Patient_Tag']
+        # Select from TBL_Device where Device_Tag is equal
+        # to the Device_Tag in TBL_Crest_Patient (Result from the above query)
         query = '''
             SELECT CONCAT(Device_Last_Updated_Date, " ",
                       Device_Last_Updated_Time) AS datetime,
@@ -46,6 +66,7 @@ def Crest_Device_Alert():
 
         for device_row in Devices:
             try:
+                # Extract Device_ID
                 Device_ID = device_row['Device_ID']
                 print(Device_ID)
                 query = '''
@@ -56,6 +77,9 @@ def Crest_Device_Alert():
                 parameters = (Device_ID, 0,)
                 Cursor.execute(query, parameters)
                 Alerts = dictfetchall(Cursor)
+
+                print('Alerts')
+                print(Alerts)
                 for alert_row in Alerts:
                     alert_code = int(alert_row['Alert_Code'])
                     Alert_ID = alert_row['Alert_ID']
@@ -116,6 +140,8 @@ def Crest_Device_Alert():
                     device_row['device_id'] = device_row['Device_Tag']
                     del device_row['Device_Tag']
 
+                    device_row['respiratory_alert'] = -999
+
                     datetime_val = datetime.strptime(device_row['datetime'], '%Y-%m-%d %H:%M:%S')
                     datetime_val = int(datetime_val.timestamp())
                     device_row['datetime'] = datetime_val
@@ -132,40 +158,27 @@ def Crest_Device_Alert():
 
                     if response.status_code == 200:
                         print(f'Status: {response.status_code}')
-                        print('Hello World')
                         query = '''
                             UPDATE TBL_Alert
-                            SET Sent_To_Crest = %s AND
-                                Alert_ID = %s
+                            SET Sent_To_Crest = %s
+                            WHERE Alert_ID = %s
                         '''
                         parameters = (1, Alert_ID)
                         Cursor.execute(query, parameters)
                         Connector.commit()
+                        print('Sent_To_Crest set to 1')
+
+                        Save_To_Logging(Alert_ID)
 
             except (IndexError, KeyError):
                 pass
 
 
-
-
-
-
-
 Crest_Device_Alert()
 
 
-# {
-#     “subject_id”: [int],
-#     “device_id”: [string],
-#     “datetime”: [int],
-#     “latitude”: [float], *For CQ01 & CQ02, other devices use 0
-#     “longitude”: [float], *For CQ01 & CQ02, other devices use 0
-#     “temperature_alert”: [int], **For CQ02 & CQ03, other devices use -999
-#     “SpO2_alert”: [int], **For CQ02 & CQ03, other devices use -999
-#     “heartrate_alert”: [int], **For CQ02 & CQ03, other devices use -999
-#     “respiratory_alert”: [int], **For CQ02 & CQ03, other devices use -999
-#     “alert_type”: [int], ***For CQ01, other devices use -999
-#     “alert_value”: [str] ***For CQ01, other devices use “N/A”
-# }
+print('Crest_Device_Alert.py ran successfull!')
+time.sleep(3)
+
 
 
