@@ -31,7 +31,6 @@ def Update_Device():
     for row in data:
         data_to_save[row['device_mac']] = row
 
-
     for row in data_to_save.items():
         print(row[0])
         row_data = row[1]

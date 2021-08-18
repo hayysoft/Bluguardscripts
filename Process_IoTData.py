@@ -292,10 +292,8 @@ def Filter_Message(validated, Device_Type, Raw_Data, data, gateway_mac, Device_M
 def Get_Mqtt_Data(data_from_gateway):
 	Connector = mysql.connect(**config)
 	Cursor = Connector.cursor()
-	print('*' * 10, 'DATA_FROM_GATEWAY', '*' * 10)
 
 	for data in data_from_gateway:
-		print(data)
 		if data['type'] == 'Gateway':
 			gateway_mac = data['mac']
 			query = '''
