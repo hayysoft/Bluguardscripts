@@ -13,6 +13,12 @@ config = {
 }
 
 
+def dictfetchall(cursor):
+    columns = [col[0] for col in cursor.description]
+    return [
+        dict(zip(columns, row)) for row in cursor.fetchall()
+    ]
+
 
 def Create_PK(ID):
     """Creates a primary_key for a given table

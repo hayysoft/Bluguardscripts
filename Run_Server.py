@@ -9,6 +9,7 @@ import os
 
 os.chdir('C:/Users/hayysoft/Documents/APIs')
 X = lambda s: os.system(s)
+X('env\\Scripts\\activate')
 X('python manage.py runserver 0.0.0.0:5050')
 
 

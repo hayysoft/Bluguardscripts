@@ -23,19 +23,25 @@ def Run_Main_Program():
         X('python Main_Program.py')
     except KeyboardInterrupt as e:
         logger.exception(e)
+        # import Twilio_Config
     except Exception as e:
         logger.exception(e)
+        # import Twilio_Config
     finally:
         logger.info('Program Finished!\n')
+        # import Twilio_Config
         X('python Main_Program.py')
 
 
 try:
     Run_Main_Program()
 except RuntimeError:
+    # import Twilio_Config
     Run_Main_Program()
 except RuntimeWarning:
+    # import Twilio_Config
     Run_Main_Program()
 finally:
+    # import Twilio_Config
     Run_Main_Program()
 
